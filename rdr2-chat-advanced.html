@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RDR2 Chat Overlay - Advanced</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Playfair Display', serif;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    #chat-box {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-message {
+      display: flex;
+      align-items: flex-start;
+      background: url('https://i.imgur.com/6aM1tTu.png');
+      background-size: cover;
+      color: #f4e6c1;
+      padding: 14px 18px;
+      border: 2px solid #8b3f1c;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      box-shadow: 6px 6px 0 #00000066;
+      animation: rollIn 0.8s ease-out;
+      opacity: 1;
+      transition: opacity 1s ease-out;
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      margin-right: 12px;
+      border: 2px solid #d9281e;
+    }
+
+    .message-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .username {
+      color: #d9281e;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    @keyframes rollIn {
+      0% {
+        opacity: 0;
+        transform: rotate(-90deg) translateX(-100px);
+      }
+      100% {
+        opacity: 1;
+        transform: rotate(0deg) translateX(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <audio id="cowboy-sound" src="https://freesound.org/data/previews/403/403018_5121236-lq.mp3" preload="auto"></audio>
+
+  <div id="chat-box"></div>
+
+  <script>
+    // Fungsi menambahkan pesan baru ke chat
+    function addChatMessage(username, message) {
+      const chatBox = document.getElementById('chat-box');
+      const chatMessage = document.createElement('div');
+      chatMessage.className = 'chat-message';
+
+      // Avatar acak berdasarkan nama
+      const avatarSeed = encodeURIComponent(username.toLowerCase());
+      const avatarURL = `https://ui-avatars.com/api/?name=${avatarSeed}&background=8b3f1c&color=fff&rounded=true`;
+
+      chatMessage.innerHTML = `
+        <img class="avatar" src="${avatarURL}" alt="avatar">
+        <div class="message-content">
+          <span class="username">${username}</span>
+          <span>${message}</span>
+        </div>
+      `;
+      chatBox.appendChild(chatMessage);
+
+      // Mainkan efek suara koboi
+      const sound = document.getElementById('cowboy-sound');
+      if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(() => {});
+      }
+
+      // Hapus pesan setelah 10 detik
+      setTimeout(() => {
+        chatMessage.style.opacity = 0;
+        setTimeout(() => {
+          chatBox.removeChild(chatMessage);
+        }, 1000);
+      }, 10000);
+    }
+
+    // Hubungkan ke WebSocket chat VDO.Ninja
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get("room");
+    const password = urlParams.get("password") || "";
+    const wsURL = `wss://api.vdo.ninja:443/chat/${room}?password=${password}`;
+
+    if (room) {
+      const socket = new WebSocket(wsURL);
+
+      socket.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.username && data.text) {
+            addChatMessage(data.username, data.text);
+          }
+        } catch (e) {
+          console.error("Invalid message", e);
+        }
+      };
+
+      socket.onopen = () => console.log("Connected to VDO.Ninja chat.");
+      socket.onerror = (e) => console.error("WebSocket error:", e);
+    } else {
+      addChatMessage("SYSTEM", "Tambahkan parameter ?room=namaruang di URL!");
+    }
+  </script>
+</body>
+</html>
